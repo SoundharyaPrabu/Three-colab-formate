@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Basic Geometries</title>
+  <style>
+    body { margin: 0; }
+  </style>
+</head>
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const material = new THREE.MeshNormalMaterial();
+
+    const shapes = [
+      new THREE.BoxGeometry(1, 1, 1),             
+      new THREE.SphereGeometry(0.6, 32, 32),      
+      new THREE.PlaneGeometry(1.5, 1.5),          
+      new THREE.CylinderGeometry(0.5, 0.5, 1, 32),
+      new THREE.TorusGeometry(0.5, 0.2, 16, 100), 
+      new THREE.ConeGeometry(0.5, 1, 32)          
+    ];
+
+    shapes.forEach((geo, i) => {
+      const mesh = new THREE.Mesh(geo, material);
+      mesh.position.x = (i - 2.5) * 2.2;
+      scene.add(mesh);
+    });
+
+    camera.position.z = 8;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      scene.children.forEach(obj => obj.rotation.y += 0.01);
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
