@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>3D Dashboard</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    #menu {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 200px;
+      height: 100%;
+      background: #1e1e1e;
+      color: white;
+      padding: 20px;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+    }
+    #menu h3 { margin-top: 20px; }
+    .btn {
+      display: block;
+      background: #444;
+      margin: 8px 0;
+      padding: 8px;
+      color: white;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    canvas { display: block; margin-left: 200px; }
+  </style>
+</head>
+<body>
+
+<div id="menu">
+  <h2>3D Dashboard</h2>
+
+  <h3>Shapes</h3>
+  <div class="btn" onclick="loadShape('box')">Cube</div>
+  <div class="btn" onclick="loadShape('sphere')">Sphere</div>
+  <div class="btn" onclick="loadShape('cone')">Cone</div>
+  <div class="btn" onclick="loadShape('torus')">Torus</div>
+
+  <h3>Textures</h3>
+  <div class="btn" onclick="loadTexture('wood')">Wood</div>
+  <div class="btn" onclick="loadTexture('brick')">Brick</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+  let scene, camera, renderer, mesh, currentMaterial;
+
+  init();
+
+  function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x202020);
+
+    camera = new THREE.PerspectiveCamera(70, window.innerWidth / (window.innerHeight), 0.1, 1000);
+    camera.position.set(3, 3, 5);
+    camera.lookAt(0, 0, 0);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth - 200, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const light = new THREE.PointLight(0xffffff, 1);
+    light.position.set(5, 5, 5);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+    // Default Shape
+    loadShape('box');
+    loadTexture('wood');
+
+    animate();
+  }
+
+  function loadShape(type) {
+    if (mesh) {
+      scene.remove(mesh);
+    }
+
+    let geometry;
+    switch(type) {
+      case 'box': geometry = new THREE.BoxGeometry(2, 2, 2); break;
+      case 'sphere': geometry = new THREE.SphereGeometry(1.2, 32, 32); break;
+      case 'cone': geometry = new THREE.ConeGeometry(1, 2, 32); break;
+      case 'torus': geometry = new THREE.TorusGeometry(1, 0.4, 16, 100); break;
+    }
+
+    mesh = new THREE.Mesh(geometry, currentMaterial || new THREE.MeshStandardMaterial({ color: 0x7777ff }));
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+  }
+
+  function loadTexture(type) {
+    const loader = new THREE.TextureLoader();
+    let textureURL;
+
+    switch(type) {
+      case 'wood': textureURL = 'https://threejsfundamentals.org/threejs/resources/images/compressed-but-large-wood-texture.jpg'; break;
+      case 'brick': textureURL = 'https://threejsfundamentals.org/threejs/resources/images/wall.jpg'; break;
+    }
+
+    loader.load(textureURL, (texture) => {
+      currentMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      if (mesh) mesh.material = currentMaterial;
+    });
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    if (mesh) mesh.rotation.y += 0.01;
+    renderer.render(scene, camera);
+  }
+
+  window.addEventListener('resize', () => {
+    camera.aspect = (window.innerWidth - 200) / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth - 200, window.innerHeight);
+  });
+</script>
+
+</body>
+</html>
+

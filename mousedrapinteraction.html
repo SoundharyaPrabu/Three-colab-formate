@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Shape Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+        
+        .sidebar {
+            width: 220px;
+            background: linear-gradient(135deg, #2c3e50 0%, #4a6491 100%);
+            padding: 25px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-weight: 300;
+            font-size: 1.8em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .shape-option {
+            background: rgba(255,255,255,0.1);
+            padding: 18px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 1px solid rgba(255,255,255,0.1);
+            font-size: 1.1em;
+            user-select: none;
+        }
+        
+        .shape-option:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .shape-option.active {
+            background: #3498db;
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.6);
+            border-color: rgba(255,255,255,0.3);
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+        }
+        
+        .shape-display {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #shapeCanvas {
+            display: block;
+            cursor: grab;
+            background: white;
+        }
+        
+        #shapeCanvas:active {
+            cursor: grabbing;
+        }
+        
+        .controls {
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .color-picker label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+        
+        #colorInput {
+            width: 70px;
+            height: 40px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        #colorInput:hover {
+            border-color: #3498db;
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.2);
+        }
+        
+        .instructions {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .reset-btn {
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .reset-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Shape Dashboard</h2>
+        <div class="shape-option" data-shape="circle">● Circle</div>
+        <div class="shape-option" data-shape="triangle">▲ Triangle</div>
+        <div class="shape-option" data-shape="square">■ Square</div>
+        <div class="shape-option" data-shape="rectangle">▭ Rectangle</div>
+        <div class="shape-option" data-shape="pentagon">⬟ Pentagon</div>
+        <div class="shape-option" data-shape="hexagon">⬢ Hexagon</div>
+    </div>
+    
+    <div class="main-content">
+        <div class="shape-display">
+            <canvas id="shapeCanvas" width="700" height="550"></canvas>
+            <div class="instructions">Drag to move • Scroll to zoom • Double-click to reset</div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <div class="color-picker">
+                    <label for="colorInput">Shape Color:</label>
+                    <input type="color" id="colorInput" value="#3498db">
+                </div>
+                <button class="reset-btn" id="resetBtn">Reset Position</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get canvas and context
+        const canvas = document.getElementById('shapeCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Shape state
+        let currentShape = 'circle';
+        let currentColor = '#3498db';
+        let shapePosition = { x: 350, y: 275 };
+        let scale = 1.0;
+        let isDragging = false;
+        let lastPosition = { x: 0, y: 0 };
+        let velocity = { x: 0, y: 0 };
+        let lastTime = 0;
+        const friction = 0.95;
+        
+        // Animation variables
+        let animationId = null;
+        let isAnimating = false;
+        
+        // Shape options
+        const shapeOptions = document.querySelectorAll('.shape-option');
+        const colorInput = document.getElementById('colorInput');
+        const resetBtn = document.getElementById('resetBtn');
+        
+        // Draw functions for each shape
+        const shapes = {
+            circle: function(x, y, size) {
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+                
+                // Add subtle shadow
+                ctx.shadowColor = currentColor;
+                ctx.shadowBlur = 20 * scale;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+            },
+            
+            triangle: function(x, y, size) {
+                ctx.beginPath();
+                ctx.moveTo(x, y - size);
+                ctx.lineTo(x - size, y + size * 0.8);
+                ctx.lineTo(x + size, y + size * 0.8);
+                ctx.closePath();
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+                
+                ctx.shadowColor = currentColor;
+                ctx.shadowBlur = 20 * scale;
+            },
+            
+            square: function(x, y, size) {
+                const halfSize = size;
+                ctx.beginPath();
+                ctx.rect(x - halfSize, y - halfSize, halfSize * 2, halfSize * 2);
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+                
+                ctx.shadowColor = currentColor;
+                ctx.shadowBlur = 15 * scale;
+            },
+            
+            rectangle: function(x, y, size) {
+                const width = size * 1.5;
+                const height = size;
+                ctx.beginPath();
+                ctx.rect(x - width/2, y - height/2, width, height);
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+                
+                ctx.shadowColor = currentColor;
+                ctx.shadowBlur = 15 * scale;
+            },
+            
+            pentagon: function(x, y, size) {
+                ctx.beginPath();
+                const sides = 5;
+                
+                for (let i = 0; i <= sides; i++) {
+                    const angle = (i * 2 * Math.PI / sides) - Math.PI/2;
+                    const px = x + size * Math.cos(angle);
+                    const py = y + size * Math.sin(angle);
+                    
+                    if (i === 0) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        ctx.lineTo(px, py);
+                    }
+                }
+                
+                ctx.closePath();
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+                
+                ctx.shadowColor = currentColor;
+                ctx.shadowBlur = 20 * scale;
+            },
+            
+            hexagon: function(x, y, size) {
+                ctx.beginPath();
+                const sides = 6;
+                
+                for (let i = 0; i <= sides; i++) {
+                    const angle = (i * 2 * Math.PI / sides) - Math.PI/2;
+                    const px = x + size * Math.cos(angle);
+                    const py = y + size * Math.sin(angle);
+                    
+                    if (i === 0) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        ctx.lineTo(px, py);
+                    }
+                }
+                
+                ctx.closePath();
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+                
+                ctx.shadowColor = currentColor;
+                ctx.shadowBlur = 20 * scale;
+            }
+        };
+        
+        // Function to draw the current shape
+        function drawShape() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Reset shadow settings
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            
+            // Save the current context
+            ctx.save();
+            
+            // Apply transformations
+            ctx.translate(shapePosition.x, shapePosition.y);
+            ctx.scale(scale, scale);
+            ctx.translate(-shapePosition.x, -shapePosition.y);
+            
+            // Draw the shape with base size of 80 (scaled by the global scale)
+            shapes[currentShape](shapePosition.x, shapePosition.y, 80 * scale);
+            
+            // Restore the context
+            ctx.restore();
+        }
+        
+        // Physics-based animation
+        function animate(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+            
+            if (!isDragging && (Math.abs(velocity.x) > 0.1 || Math.abs(velocity.y) > 0.1)) {
+                shapePosition.x += velocity.x * deltaTime / 16;
+                shapePosition.y += velocity.y * deltaTime / 16;
+                
+                // Apply friction
+                velocity.x *= friction;
+                velocity.y *= friction;
+                
+                // Boundary checks
+                shapePosition.x = Math.max(80 * scale, Math.min(canvas.width - 80 * scale, shapePosition.x));
+                shapePosition.y = Math.max(80 * scale, Math.min(canvas.height - 80 * scale, shapePosition.y));
+                
+                drawShape();
+                animationId = requestAnimationFrame(animate);
+            } else {
+                isAnimating = false;
+                velocity = { x: 0, y: 0 };
+            }
+        }
+        
+        // Start animation if needed
+        function startAnimation() {
+            if (!isAnimating) {
+                isAnimating = true;
+                lastTime = 0;
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+        
+        // Mouse event handlers
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Check if mouse is inside shape
+            let isInside = false;
+            const distance = Math.sqrt(
+                Math.pow(mouseX - shapePosition.x, 2) + 
+                Math.pow(mouseY - shapePosition.y, 2)
+            );
+            
+            // Different hit detection based on shape
+            switch(currentShape) {
+                case 'circle':
+                    isInside = distance <= 80 * scale;
+                    break;
+                case 'triangle':
+                    // Simplified triangle hit detection
+                    isInside = distance <= 100 * scale;
+                    break;
+                case 'square':
+                case 'rectangle':
+                    // Rectangle hit detection
+                    const halfWidth = currentShape === 'square' ? 80 * scale : 120 * scale;
+                    const halfHeight = currentShape === 'square' ? 80 * scale : 80 * scale;
+                    isInside = 
+                        mouseX >= shapePosition.x - halfWidth && 
+                        mouseX <= shapePosition.x + halfWidth &&
+                        mouseY >= shapePosition.y - halfHeight && 
+                        mouseY <= shapePosition.y + halfHeight;
+                    break;
+                default:
+                    // For polygons
+                    isInside = distance <= 100 * scale;
+            }
+            
+            if (isInside) {
+                isDragging = true;
+                lastPosition = { x: mouseX, y: mouseY };
+                velocity = { x: 0, y: 0 };
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    isAnimating = false;
+                }
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                const dx = mouseX - lastPosition.x;
+                const dy = mouseY - lastPosition.y;
+                
+                shapePosition.x += dx;
+                shapePosition.y += dy;
+                
+                // Update velocity for inertia
+                velocity = { x: dx * 0.5, y: dy * 0.5 };
+                
+                lastPosition = { x: mouseX, y: mouseY };
+                drawShape();
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                startAnimation();
+            }
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            if (isDragging) {
+                isDragging = false;
+                startAnimation();
+            }
+        });
+        
+        // Double-click to reset position
+        canvas.addEventListener('dblclick', () => {
+            resetPosition();
+        });
+        
+        // Zoom with mouse wheel
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            // Get mouse position
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Calculate new scale (limit between 0.3 and 4)
+            const delta = -e.deltaY * 0.001;
+            const newScale = Math.min(Math.max(scale + delta, 0.3), 4);
+            
+            // Calculate position adjustment to zoom toward mouse
+            const scaleChange = newScale / scale;
+            shapePosition.x = mouseX - (mouseX - shapePosition.x) * scaleChange;
+            shapePosition.y = mouseY - (mouseY - shapePosition.y) * scaleChange;
+            
+            scale = newScale;
+            drawShape();
+        });
+        
+        // Reset position and scale
+        function resetPosition() {
+            shapePosition = { x: 350, y: 275 };
+            scale = 1.0;
+            velocity = { x: 0, y: 0 };
+            drawShape();
+        }
+        
+        // Event listeners for shape selection
+        shapeOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                shapeOptions.forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+                currentShape = this.dataset.shape;
+                drawShape();
+            });
+        });
+        
+        // Event listener for color picker
+        colorInput.addEventListener('input', function() {
+            currentColor = this.value;
+            drawShape();
+        });
+        
+        // Reset button
+        resetBtn.addEventListener('click', resetPosition);
+        
+        // Initialize with circle selected
+        document.querySelector('.shape-option[data-shape="circle"]').classList.add('active');
+        drawShape();
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            // In a real app, you'd want to adjust canvas size here
+            drawShape();
+        });
+    </script>
+</body>
+</html>
+

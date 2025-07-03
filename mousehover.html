@@ -1,0 +1,368 @@
+Object mouse dragging
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Shape Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background: #f5f5f5;
+        }
+        
+        .sidebar {
+            width: 200px;
+            background: #2c3e50;
+            padding: 20px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .shape-option {
+            background: #34495e;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+        }
+        
+        .shape-option:hover {
+            background: #3d566e;
+            transform: scale(1.05);
+        }
+        
+        .shape-option.active {
+            background: #3498db;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.7);
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        
+        .shape-display {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #shapeCanvas {
+            display: block;
+            cursor: grab;
+        }
+        
+        #shapeCanvas:active {
+            cursor: grabbing;
+        }
+        
+        .controls {
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .color-picker label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        #colorInput {
+            width: 60px;
+            height: 35px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #colorInput:hover {
+            border-color: #3498db;
+            transform: scale(1.05);
+        }
+        
+        .instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Shapes</h2>
+        <div class="shape-option" data-shape="circle">Circle</div>
+        <div class="shape-option" data-shape="triangle">Triangle</div>
+        <div class="shape-option" data-shape="square">Square</div>
+        <div class="shape-option" data-shape="rectangle">Rectangle</div>
+        <div class="shape-option" data-shape="pentagon">Pentagon</div>
+        <div class="shape-option" data-shape="hexagon">Hexagon</div>
+    </div>
+    
+    <div class="main-content">
+        <div class="shape-display">
+            <canvas id="shapeCanvas" width="600" height="500"></canvas>
+            <div class="instructions">Drag to move • Scroll to zoom</div>
+        </div>
+        
+        <div class="controls">
+            <div class="color-picker">
+                <label for="colorInput">Shape Color:</label>
+                <input type="color" id="colorInput" value="#3498db">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get canvas and context
+        const canvas = document.getElementById('shapeCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Shape state
+        let currentShape = 'circle';
+        let currentColor = '#3498db';
+        let shapePosition = { x: 300, y: 250 };
+        let scale = 1.0;
+        let isDragging = false;
+        let lastPosition = { x: 0, y: 0 };
+        
+        // Shape options
+        const shapeOptions = document.querySelectorAll('.shape-option');
+        const colorInput = document.getElementById('colorInput');
+        
+        // Draw functions for each shape
+        const shapes = {
+            circle: function(x, y, size) {
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+            },
+            
+            triangle: function(x, y, size) {
+                ctx.beginPath();
+                ctx.moveTo(x, y - size);
+                ctx.lineTo(x - size, y + size);
+                ctx.lineTo(x + size, y + size);
+                ctx.closePath();
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+            },
+            
+            square: function(x, y, size) {
+                const halfSize = size;
+                ctx.beginPath();
+                ctx.rect(x - halfSize, y - halfSize, halfSize * 2, halfSize * 2);
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+            },
+            
+            rectangle: function(x, y, size) {
+                const width = size * 1.5;
+                const height = size;
+                ctx.beginPath();
+                ctx.rect(x - width/2, y - height/2, width, height);
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+            },
+            
+            pentagon: function(x, y, size) {
+                ctx.beginPath();
+                const sides = 5;
+                
+                for (let i = 0; i <= sides; i++) {
+                    const angle = (i * 2 * Math.PI / sides) - Math.PI/2;
+                    const px = x + size * Math.cos(angle);
+                    const py = y + size * Math.sin(angle);
+                    
+                    if (i === 0) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        ctx.lineTo(px, py);
+                    }
+                }
+                
+                ctx.closePath();
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+            },
+            
+            hexagon: function(x, y, size) {
+                ctx.beginPath();
+                const sides = 6;
+                
+                for (let i = 0; i <= sides; i++) {
+                    const angle = (i * 2 * Math.PI / sides) - Math.PI/2;
+                    const px = x + size * Math.cos(angle);
+                    const py = y + size * Math.sin(angle);
+                    
+                    if (i === 0) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        ctx.lineTo(px, py);
+                    }
+                }
+                
+                ctx.closePath();
+                ctx.fillStyle = currentColor;
+                ctx.fill();
+            }
+        };
+        
+        // Function to draw the current shape
+        function drawShape() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Save the current context
+            ctx.save();
+            
+            // Apply transformations
+            ctx.translate(shapePosition.x, shapePosition.y);
+            ctx.scale(scale, scale);
+            ctx.translate(-shapePosition.x, -shapePosition.y);
+            
+            // Draw the shape with base size of 80 (scaled by the global scale)
+            shapes[currentShape](shapePosition.x, shapePosition.y, 80 * scale);
+            
+            // Restore the context
+            ctx.restore();
+        }
+        
+        // Mouse event handlers
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Check if mouse is inside shape (simple distance check for circle)
+            if (currentShape === 'circle') {
+                const distance = Math.sqrt(
+                    Math.pow(mouseX - shapePosition.x, 2) + 
+                    Math.pow(mouseY - shapePosition.y, 2)
+                );
+                if (distance <= 80 * scale) {
+                    isDragging = true;
+                    lastPosition = { x: mouseX, y: mouseY };
+                }
+            } else {
+                // For other shapes, we'll just check if mouse is near center
+                const distance = Math.sqrt(
+                    Math.pow(mouseX - shapePosition.x, 2) + 
+                    Math.pow(mouseY - shapePosition.y, 2)
+                );
+                if (distance <= 100 * scale) {
+                    isDragging = true;
+                    lastPosition = { x: mouseX, y: mouseY };
+                }
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                const dx = mouseX - lastPosition.x;
+                const dy = mouseY - lastPosition.y;
+                
+                shapePosition.x += dx;
+                shapePosition.y += dy;
+                
+                lastPosition = { x: mouseX, y: mouseY };
+                drawShape();
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+        
+        // Zoom with mouse wheel
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            // Get mouse position
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Calculate new scale (limit between 0.5 and 3)
+            const delta = -e.deltaY * 0.001;
+            const newScale = Math.min(Math.max(scale + delta, 0.5), 3);
+            
+            // Calculate position adjustment to zoom toward mouse
+            const scaleChange = newScale / scale;
+            shapePosition.x = mouseX - (mouseX - shapePosition.x) * scaleChange;
+            shapePosition.y = mouseY - (mouseY - shapePosition.y) * scaleChange;
+            
+            scale = newScale;
+            drawShape();
+        });
+        
+        // Event listeners for shape selection
+        shapeOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                shapeOptions.forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+                currentShape = this.dataset.shape;
+                drawShape();
+            });
+        });
+        
+        // Event listener for color picker
+        colorInput.addEventListener('input', function() {
+            currentColor = this.value;
+            drawShape();
+        });
+        
+        // Initialize with circle selected
+        document.querySelector('.shape-option[data-shape="circle"]').classList.add('active');
+        drawShape();
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            // In a real app, you'd want to adjust canvas size here
+            drawShape();
+        });
+    </script>
+</body>
+</html>
